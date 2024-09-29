@@ -1,8 +1,8 @@
-from langchain.document_loaders import PyPDFLoader, DirectoryLoader
-from langchain import PromptTemplate
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.llms import CTransformers
+from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader  # Updated imports
+from langchain_core.prompts import PromptTemplate  # Updated import
+from langchain_huggingface import HuggingFaceEmbeddings  # Updated imports
+from langchain_community.vectorstores import FAISS  # Updated imports
+from langchain_community.llms import CTransformers  # Updated import
 from langchain.chains import RetrievalQA
 import chainlit as cl
 
@@ -26,7 +26,7 @@ def set_custom_prompt():
                             input_variables=['context', 'question'])
     return prompt
 
-#Retrieval QA Chain
+# Retrieval QA Chain
 def retrieval_qa_chain(llm, prompt, db):
     qa_chain = RetrievalQA.from_chain_type(llm=llm,
                                        chain_type='stuff',
@@ -36,35 +36,36 @@ def retrieval_qa_chain(llm, prompt, db):
                                        )
     return qa_chain
 
-#Loading the model
+# Loading the model
 def load_llm():
     # Load the locally downloaded model here
     llm = CTransformers(
-        model = "llama-2-7b-chat.ggmlv3.q8_0.bin",
+        model="llama-2-7b-chat.ggmlv3.q8_0.bin",
         model_type="llama",
-        max_new_tokens = 512,
-        temperature = 0.5
+        max_new_tokens=512,
+        temperature=0.5
     )
     return llm
 
-#QA Model Function
+# QA Model Function
 def qa_bot():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2",
                                        model_kwargs={'device': 'cpu'})
-    db = FAISS.load_local(DB_FAISS_PATH, embeddings)
+    db = FAISS.load_local(DB_FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
+
     llm = load_llm()
     qa_prompt = set_custom_prompt()
     qa = retrieval_qa_chain(llm, qa_prompt, db)
 
     return qa
 
-#output function
+# Output function
 def final_result(query):
     qa_result = qa_bot()
     response = qa_result({'query': query})
     return response
 
-#chainlit code
+# Chainlit code
 @cl.on_chat_start
 async def start():
     chain = qa_bot()
@@ -77,7 +78,7 @@ async def start():
 
 @cl.on_message
 async def main(message):
-    chain = cl.user_session.get("chain") 
+    chain = cl.user_session.get("chain")
     cb = cl.AsyncLangchainCallbackHandler(
         stream_final_answer=True, answer_prefix_tokens=["FINAL", "ANSWER"]
     )
@@ -87,7 +88,7 @@ async def main(message):
     sources = res["source_documents"]
 
     if sources:
-        answer += f"\nSources:" + str(sources)
+        answer += f"\nSources: " + str(sources)
     else:
         answer += "\nNo sources found"
 
